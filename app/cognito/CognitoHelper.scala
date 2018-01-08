@@ -78,7 +78,7 @@ case class CognitoHelper()(implicit val actorSystem: ActorSystem, val materializ
   }
 
   def validateUser(username: String, password: String): String = {
-    val helper = new AuthenticationHelper(POOL_ID, CLIENTAPP_ID, "")
+    val helper = AuthenticationHelper(POOL_ID, CLIENTAPP_ID, "")
     helper.performSRPAuthentication(username, password)
   }
 

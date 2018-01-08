@@ -16,7 +16,10 @@ import com.amazonaws.util.{Base64, StringUtils}
 
 import scala.annotation.tailrec
 
-class AuthenticationHelper(userPoolId: String, clientId: String, secretKey: String, region: String = Constants.REGION) {
+class AuthenticationHelper private(userPoolId: String,
+                                   clientId: String,
+                                   secretKey: String,
+                                   region: String = Constants.REGION) {
 
   import AuthenticationHelper._
 
@@ -66,7 +69,7 @@ class AuthenticationHelper(userPoolId: String, clientId: String, secretKey: Stri
     messageDigest.update(salt.toByteArray)
 
     val x = new BigInteger(1, messageDigest.digest(userIdHash))
-    val S = B.subtract(k.multiply(g.modPow(x, N))).modPow(get_a().add(u.multiply(x)), N).mod(N)
+    val S = B.subtract(k.multiply(g.modPow(x, N))).modPow(a.add(u.multiply(x)), N).mod(N)
 
     val hkdf = Hkdf("HmacSHA256", S.toByteArray, u.toByteArray)
     hkdf.deriveKey(DERIVED_KEY_INFO, DERIVED_KEY_SIZE)
@@ -88,6 +91,9 @@ class AuthenticationHelper(userPoolId: String, clientId: String, secretKey: Stri
     println(s"The initiate AuthResult === $initiateAuthResult")
     if (ChallengeNameType.PASSWORD_VERIFIER.toString.equals(initiateAuthResult.getChallengeName)) {
       val challengeRequest = userSrpAuthRequest(initiateAuthResult, password)
+
+      println(s"The challengeRequest -- $challengeRequest")
+
       val result = cognitoIdentityProvider.respondToAuthChallenge(challengeRequest)
 
       println(s"\n\nThe result is -- $result\n\n")
@@ -108,7 +114,7 @@ class AuthenticationHelper(userPoolId: String, clientId: String, secretKey: Stri
     //Only to be used if the pool contains the secret key.
     //initiateAuthRequest.addAuthParametersEntry("SECRET_HASH", this.calculateSecretHash(this.clientId,this.secretKey,username));
     initiateAuthRequest.addAuthParametersEntry("USERNAME", userName)
-    initiateAuthRequest.addAuthParametersEntry("SRP_A", getA.toString(16))
+    initiateAuthRequest.addAuthParametersEntry("SRP_A", A.toString(16))
   }
 
   private def userSrpAuthRequest(challenge: InitiateAuthResult, password: String): RespondToAuthChallengeRequest = {
@@ -167,6 +173,14 @@ class AuthenticationHelper(userPoolId: String, clientId: String, secretKey: Stri
 }
 
 object AuthenticationHelper {
+
+  def apply(userPoolId: String, clientId: String, secretKey: String, region: String = Constants.REGION)
+  : AuthenticationHelper = {
+    val authHelper = new AuthenticationHelper(userPoolId, clientId, secretKey, region)
+    authHelper.getBigIntegers()
+    authHelper
+  }
+
   val HEX_N =
     "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1" +
       "29024E088A67CC74020BBEA63B139B22514A08798E3404DD" +
